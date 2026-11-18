@@ -1,0 +1,16 @@
+version: 2
+
+sources:
+  - name: raw
+    database: "{{ env_var('SNOWFLAKE_DATABASE', 'GRIL') }}"
+    schema: RAW
+    description: "Gold snapshots exported from the Databricks/Delta lakehouse via COPY INTO."
+    loaded_at_field: _loaded_at
+    freshness:
+      warn_after: {count: 2, period: day}
+      error_after: {count: 7, period: day}
+    tables:
+      - name: dim_country
+      - name: dim_indicator
+      - name: fact_indicator_observation
+      - name: fact_country_risk_score

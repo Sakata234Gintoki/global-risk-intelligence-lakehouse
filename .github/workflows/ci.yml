@@ -1,0 +1,84 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install
+        run: pip install -e ".[spark,quality,dev]"
+      - name: Ruff
+        run: ruff check src tests
+      - name: Pytest (PySpark + Delta unit tests)
+        run: pytest -q
+
+  dbt-parse:
+    runs-on: ubuntu-latest
+    env:
+      SNOWFLAKE_ACCOUNT: ci_dummy
+      SNOWFLAKE_USER: ci_dummy
+      SNOWFLAKE_PASSWORD: ci_dummy
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install "dbt-snowflake>=1.8,<1.10"
+      - name: dbt deps + parse (compiles all models, snapshots and tests without a warehouse)
+        working-directory: dbt
+        run: |
+          dbt deps --profiles-dir .
+          dbt parse --profiles-dir .
+
+  docker-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy-databricks:
+    # Deploys the wheel + job definition on merges to main (needs repo secrets).
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [lint-and-test, dbt-parse, docker-build]
+    runs-on: ubuntu-latest
+    env:
+      DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+      DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: databricks/setup-cli@main
+      - name: Skip if Databricks secrets are not configured
+        id: gate
+        run: |
+          if [ -z "$DATABRICKS_HOST" ]; then echo "skip=true" >> "$GITHUB_OUTPUT"; fi
+      - name: Deploy bundle
+        if: steps.gate.outputs.skip != 'true'
+        run: |
+          pip install build
+          databricks bundle deploy -t prod

@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gril"
+version = "1.0.0"
+description = "Global Risk Intelligence Lakehouse: Medallion pipeline (Databricks/PySpark/Delta) -> Snowflake -> dbt"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "requests>=2.31",
+    "fsspec>=2024.3.1",
+    "s3fs>=2024.3.1",
+    "pyyaml>=6.0",
+    "pandas>=2.0",
+]
+
+[project.optional-dependencies]
+spark = ["pyspark==3.5.1", "delta-spark==3.2.0"]
+snowflake = ["snowflake-connector-python>=3.7"]
+quality = ["great_expectations==0.18.19", "pyarrow>=14"]
+dev = ["pytest>=8", "ruff>=0.5"]
+all = ["gril[spark,snowflake,quality,dev]"]
+
+[project.scripts]
+gril-ingest = "gril.ingestion.run_ingestion:main"
+gril-bronze = "gril.bronze.ingest_bronze:main"
+gril-silver = "gril.silver.transform_silver:main"
+gril-gold = "gril.gold.build_gold:main"
+gril-quality = "gril.quality.ge_checks:main"
+gril-snowflake-load = "gril.warehouse.load_snowflake:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+gril = ["pipeline.yaml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 110
+src = ["src", "tests", "airflow"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B"]

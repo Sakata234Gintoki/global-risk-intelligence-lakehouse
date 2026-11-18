@@ -1,0 +1,53 @@
+version: 1
+
+# Calendar window pulled from the source APIs
+year_range:
+  start: 2000
+  end: 2025
+
+# WHO Global Health Observatory (GHO OData API) indicators -> HEALTH domain
+who_indicators:
+  - code: WHOSIS_000001
+    name: Life expectancy at birth (years)
+    direction: higher_is_better
+  - code: WHS4_100
+    name: DTP3 immunization coverage among 1-year-olds (%)
+    direction: higher_is_better
+  - code: MDG_0000000026
+    name: Maternal mortality ratio (per 100,000 live births)
+    direction: lower_is_better
+  - code: UHC_INDEX_REPORTED
+    name: UHC service coverage index
+    direction: higher_is_better
+
+# World Bank indicators -> FINANCIAL domain
+worldbank_indicators:
+  - code: FP.CPI.TOTL.ZG
+    name: Inflation, consumer prices (annual %)
+    direction: lower_is_better
+  - code: NY.GDP.MKTP.KD.ZG
+    name: GDP growth (annual %)
+    direction: higher_is_better
+  - code: GC.DOD.TOTL.GD.ZS
+    name: Central government debt (% of GDP)
+    direction: lower_is_better
+  - code: SL.UEM.TOTL.ZS
+    name: Unemployment (% of labour force)
+    direction: lower_is_better
+  - code: FI.RES.TOTL.MO
+    name: Total reserves in months of imports
+    direction: higher_is_better
+
+# WHO dimension values treated as the "all population" slice
+who_total_dimensions: [TOTAL, SEX_BTSX]
+
+risk:
+  # an indicator-year needs at least this many countries to be percentile-ranked
+  min_countries_per_indicator_year: 30
+  weights:
+    health: 0.5
+    financial: 0.5
+  # composite < low -> LOW, < medium -> MEDIUM, otherwise HIGH
+  tiers:
+    low: 33.0
+    medium: 66.0

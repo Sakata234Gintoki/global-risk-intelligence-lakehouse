@@ -1,0 +1,117 @@
+version: 2
+
+models:
+  - name: stg_dim_country
+    columns:
+      - name: country_key
+        tests: [not_null, unique]
+      - name: country_iso3
+        tests: [not_null, unique]
+
+  - name: stg_dim_indicator
+    columns:
+      - name: indicator_key
+        tests: [not_null, unique]
+
+  - name: stg_fact_indicator_observation
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [country_iso3, indicator_code, year]
+
+  - name: stg_fact_country_risk_score
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [country_iso3, year]
+
+  - name: dim_country
+    description: "SCD Type 2 country dimension built from the dbt snapshot."
+    columns:
+      - name: country_sk
+        tests: [not_null, unique]
+      - name: country_iso3
+        tests: [not_null]
+      - name: valid_from
+        tests: [not_null]
+      - name: valid_to
+        tests: [not_null]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [country_iso3, valid_from]
+      - dbt_utils.expression_is_true:
+          expression: "valid_from < valid_to"
+
+  - name: dim_indicator
+    columns:
+      - name: indicator_key
+        tests: [not_null, unique]
+      - name: domain
+        tests:
+          - accepted_values:
+              values: ["HEALTH", "FINANCIAL"]
+
+  - name: dim_year
+    columns:
+      - name: year
+        tests: [not_null, unique]
+
+  - name: fact_indicator_observation
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [country_iso3, indicator_code, year]
+    columns:
+      - name: country_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_country')
+              field: country_sk
+      - name: indicator_key
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_indicator')
+              field: indicator_key
+      - name: year
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_year')
+              field: year
+
+  - name: fact_country_risk_score
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [country_iso3, year]
+    columns:
+      - name: country_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_country')
+              field: country_sk
+      - name: composite_risk_score
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 100
+      - name: health_risk_score
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 100
+      - name: financial_risk_score
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 100
+      - name: risk_tier
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["LOW", "MEDIUM", "HIGH"]
+
+  - name: mart_country_risk_latest
+    columns:
+      - name: country_iso3
+        tests: [not_null, unique]

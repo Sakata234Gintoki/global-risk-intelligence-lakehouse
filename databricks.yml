@@ -1,0 +1,66 @@
+bundle:
+  name: global-risk-intelligence-lakehouse
+
+artifacts:
+  gril_wheel:
+    type: whl
+    build: python -m build --wheel
+    path: .
+
+variables:
+  storage_root:
+    description: Lakehouse root, e.g. s3://my-bucket/gril
+    default: s3://CHANGE-ME/gril
+  node_type_id:
+    default: i3.xlarge
+
+resources:
+  jobs:
+    gril_lakehouse:
+      name: gril-lakehouse-${bundle.target}
+      job_clusters:
+        - job_cluster_key: main
+          new_cluster:
+            spark_version: 15.4.x-scala2.12
+            node_type_id: ${var.node_type_id}
+            num_workers: 2
+            autotermination_minutes: 20
+            spark_env_vars:
+              GRIL_STORAGE_ROOT: ${var.storage_root}
+              SNOWFLAKE_ACCOUNT: "{{secrets/gril/snowflake_account}}"
+              SNOWFLAKE_USER: "{{secrets/gril/snowflake_user}}"
+              SNOWFLAKE_PASSWORD: "{{secrets/gril/snowflake_password}}"
+      tasks:
+        - task_key: bronze
+          job_cluster_key: main
+          python_wheel_task: {package_name: gril, entry_point: gril-bronze}
+          libraries: [{whl: ./dist/*.whl}]
+        - task_key: silver
+          depends_on: [{task_key: bronze}]
+          job_cluster_key: main
+          python_wheel_task: {package_name: gril, entry_point: gril-silver}
+          libraries: [{whl: ./dist/*.whl}]
+        - task_key: gold
+          depends_on: [{task_key: silver}]
+          job_cluster_key: main
+          python_wheel_task: {package_name: gril, entry_point: gril-gold}
+          libraries: [{whl: ./dist/*.whl}]
+        - task_key: quality_gate
+          depends_on: [{task_key: gold}]
+          job_cluster_key: main
+          python_wheel_task: {package_name: gril, entry_point: gril-quality}
+          libraries: [{whl: ./dist/*.whl}, {pypi: {package: "great_expectations==0.18.19"}}]
+        - task_key: snowflake_load
+          depends_on: [{task_key: quality_gate}]
+          job_cluster_key: main
+          python_wheel_task: {package_name: gril, entry_point: gril-snowflake-load}
+          libraries: [{whl: ./dist/*.whl}, {pypi: {package: snowflake-connector-python}}]
+
+targets:
+  dev:
+    mode: development
+    default: true
+  prod:
+    mode: production
+    workspace:
+      root_path: /Shared/.bundle/${bundle.name}/${bundle.target}
