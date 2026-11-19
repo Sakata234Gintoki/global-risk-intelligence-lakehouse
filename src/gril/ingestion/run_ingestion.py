@@ -58,14 +58,18 @@ def run(batch_id: str | None = None) -> str:
 
     countries = [flatten_wb_country(r) for r in fetch_wb_countries(session)]
     path = storage.landing("worldbank", "countries", f"batch_id={batch_id}", "data.jsonl")
-    files.append({"source": "worldbank", "indicator": "countries", "path": path, "rows": write_jsonl(path, countries)})
+    files.append(
+        {"source": "worldbank", "indicator": "countries", "path": path, "rows": write_jsonl(path, countries)}
+    )
     log.info("WB countries -> %d rows", len(countries))
 
     for ind in cfg["worldbank_indicators"]:
         code = ind["code"]
         rows = [flatten_wb_observation(r) for r in fetch_wb_indicator(session, code, y0, y1)]
         path = storage.landing("worldbank", "indicators", code, f"batch_id={batch_id}", "data.jsonl")
-        files.append({"source": "worldbank", "indicator": code, "path": path, "rows": write_jsonl(path, rows)})
+        files.append(
+            {"source": "worldbank", "indicator": code, "path": path, "rows": write_jsonl(path, rows)}
+        )
         log.info("WB %s -> %d rows", code, len(rows))
 
     empty = [f for f in files if f["rows"] == 0]

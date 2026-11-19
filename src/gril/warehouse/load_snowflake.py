@@ -66,7 +66,9 @@ def copy_into_snowflake(expected: dict[str, int]) -> None:
                 ON_ERROR = ABORT_STATEMENT
                 """
             )
-            cur.execute(f"UPDATE RAW.{sf_table} SET _LOADED_AT = CURRENT_TIMESTAMP() WHERE _LOADED_AT IS NULL")
+            cur.execute(
+                f"UPDATE RAW.{sf_table} SET _LOADED_AT = CURRENT_TIMESTAMP() WHERE _LOADED_AT IS NULL"
+            )
             cur.execute(f"SELECT COUNT(*) FROM RAW.{sf_table}")
             loaded = cur.fetchone()[0]
             if loaded != expected[gold_table]:

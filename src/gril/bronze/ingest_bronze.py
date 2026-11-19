@@ -44,7 +44,9 @@ BRONZE_SOURCES = {
 }
 
 
-def read_landing(spark: SparkSession, storage: Storage, pattern: str, schema: StructType, batch_id: str) -> DataFrame:
+def read_landing(
+    spark: SparkSession, storage: Storage, pattern: str, schema: StructType, batch_id: str
+) -> DataFrame:
     src = to_spark_uri(storage.landing(pattern.format(batch=batch_id)))
     return (
         spark.read.schema(schema).json(src)

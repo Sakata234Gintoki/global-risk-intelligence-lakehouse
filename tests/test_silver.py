@@ -14,11 +14,16 @@ COUNTRY_SCHEMA = ("country_iso3 string, country_iso2 string, country_name string
 def test_clean_who_filters_types_and_dedups_latest(spark):
     rows = [
         ("WHOSIS_000001", "COUNTRY", "ind", "2019", "SEX_BTSX", "70.0", None, None, "b1", TS1),
-        ("WHOSIS_000001", "COUNTRY", "IND", "2019", "SEX_BTSX", "70.8", None, None, "b2", TS2),  # newer
-        ("WHOSIS_000001", "REGION", "SEAR", "2019", "SEX_BTSX", "69.0", None, None, "b1", TS1),   # not a country
-        ("WHOSIS_000001", "COUNTRY", "XX", "2019", "SEX_BTSX", "1.0", None, None, "b1", TS1),     # bad iso3
-        ("WHOSIS_000001", "COUNTRY", "FRA", "2019", None, None, None, None, "b1", TS1),            # no value
-        ("WHS4_100", "COUNTRY", "FRA", "2018", None, "95", None, None, "b1", TS1),                 # dim -> TOTAL
+        # newer batch wins the dedup
+        ("WHOSIS_000001", "COUNTRY", "IND", "2019", "SEX_BTSX", "70.8", None, None, "b2", TS2),
+        # not a country
+        ("WHOSIS_000001", "REGION", "SEAR", "2019", "SEX_BTSX", "69.0", None, None, "b1", TS1),
+        # bad iso3
+        ("WHOSIS_000001", "COUNTRY", "XX", "2019", "SEX_BTSX", "1.0", None, None, "b1", TS1),
+        # no value
+        ("WHOSIS_000001", "COUNTRY", "FRA", "2019", None, None, None, None, "b1", TS1),
+        # missing dimension -> TOTAL
+        ("WHS4_100", "COUNTRY", "FRA", "2018", None, "95", None, None, "b1", TS1),
     ]
     df = clean_who(spark.createDataFrame(rows, WHO_SCHEMA)).collect()
     got = {(r.indicator_code, r.country_iso3, r.year, r.dimension_value): r.value for r in df}
@@ -30,8 +35,10 @@ def test_clean_who_filters_types_and_dedups_latest(spark):
 
 def test_clean_countries_drops_aggregates(spark):
     rows = [
-        ("IND", "IN", "India", "South Asia", "Lower middle income", "IBRD", "New Delhi", "77.2", "28.6", "b1", TS1),
-        ("WLD", "1W", "World", "Aggregates", "Aggregates", "Aggregates", None, None, None, "b1", TS1),
+        ("IND", "IN", "India", "South Asia", "Lower middle income", "IBRD",
+         "New Delhi", "77.2", "28.6", "b1", TS1),
+        ("WLD", "1W", "World", "Aggregates", "Aggregates", "Aggregates",
+         None, None, None, "b1", TS1),
     ]
     out = clean_countries(spark.createDataFrame(rows, COUNTRY_SCHEMA)).collect()
     assert [r.country_iso3 for r in out] == ["IND"]

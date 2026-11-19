@@ -15,7 +15,8 @@ def dim_indicator(spark):
 
 
 def test_percentile_risk_direction_and_composite(spark, dim_indicator):
-    # 4 countries, 2020. Health (higher is better): country 4 best. Financial (lower is better): country 1 best.
+    # 4 countries, 2020.
+    # Health (higher is better): country 4 best. Financial (lower is better): country 1 best.
     obs = spark.createDataFrame(
         [(c, 1, 2020, float(c)) for c in (1, 2, 3, 4)] + [(c, 2, 2020, float(c)) for c in (1, 2, 3, 4)],
         ["country_key", "indicator_key", "year", "value"],

@@ -29,7 +29,9 @@ def build_dim_indicator(spark: SparkSession, cfg: dict[str, Any]) -> DataFrame:
                                     ("WORLD_BANK", "worldbank_indicators", "FINANCIAL")):
         for ind in cfg[cfg_key]:
             rows.append((system, ind["code"], ind["name"], domain, ind["direction"]))
-    df = spark.createDataFrame(rows, ["source_system", "indicator_code", "indicator_name", "domain", "direction"])
+    df = spark.createDataFrame(
+        rows, ["source_system", "indicator_code", "indicator_name", "domain", "direction"]
+    )
     return df.select(
         F.xxhash64("source_system", "indicator_code").alias("indicator_key"),
         "indicator_code", "indicator_name", "source_system", "domain", "direction",
